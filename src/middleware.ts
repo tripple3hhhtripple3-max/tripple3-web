@@ -16,7 +16,12 @@ export function middleware(request: NextRequest) {
   }
 
   // 2. Identify and resolve target domains
-  const portalDomains = ['multiverse.com', 'localhost:3002'];
+  const portalDomains = [
+    'multiverse.com',
+    'localhost:3005',
+    'localhost:3002',
+    '192.168.1.169:3005'
+  ];
   const isMainDomain = portalDomains.some((domain) => hostname === domain);
 
   if (isMainDomain) {
@@ -31,9 +36,19 @@ export function middleware(request: NextRequest) {
     siteName = hostname.replace('.multiverse.com', '');
   }
 
+  // Handles local testing subdomains (e.g. workspace.localhost:3005)
+  if (hostname.endsWith('.localhost:3005')) {
+    siteName = hostname.replace('.localhost:3005', '');
+  }
+
   // Handles local testing subdomains (e.g. workspace.localhost:3002)
   if (hostname.endsWith('.localhost:3002')) {
     siteName = hostname.replace('.localhost:3002', '');
+  }
+
+  // Handles network local testing subdomains (e.g. workspace.192.168.1.169:3005)
+  if (hostname.endsWith('.192.168.1.169:3005')) {
+    siteName = hostname.replace('.192.168.1.169:3005', '');
   }
 
   // Rewrite page paths internally to the dynamic folder structure
