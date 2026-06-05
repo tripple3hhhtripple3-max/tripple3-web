@@ -10,7 +10,7 @@ export default async function SiteHomePage({
   const { siteName } = await params;
 
   try {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
     const { data } = await axios.get(
       `${backendUrl}/pages/public/by-subdomain?subdomain=${siteName}&slug=`
     );
