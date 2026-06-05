@@ -1,4 +1,5 @@
 // apps/website-renderer/src/middleware.ts
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -6,7 +7,7 @@ export function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const hostname = request.headers.get('host') || '';
 
-  // 1. Exclude public assets, service integrations, and API routes
+  // Skip static assets and API routes
   if (
     url.pathname.startsWith('/_next') ||
     url.pathname.startsWith('/api') ||
@@ -15,44 +16,60 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Identify and resolve target domains
-  const portalDomains = [
-    'multiverse.com',
-    'localhost:3005',
-    'localhost:3002',
-    '192.168.1.169:3005'
-  ];
-  const isMainDomain = portalDomains.some((domain) => hostname === domain);
+  /**
+   * Parse portal domains from env
+   *
+   * Supports:
+   * localhost:3005
+   * multiverse.com
+   * http://localhost:3005
+   * https://multiverse.com
+   */
+  const portalDomains =
+    process.env.NEXT_PUBLIC_PORTAL_DOMAINS?.split(',')
+      .map((domain) => domain.trim())
+      .filter(Boolean)
+      .map((domain) => {
+        try {
+          return new URL(domain).host;
+        } catch {
+          return domain;
+        }
+      }) || [];
 
-  if (isMainDomain) {
-    // Renders the main SaaS sales landing page/portal
+  const rootDomain =
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'multiverse.com';
+
+  console.log('Hostname:', hostname);
+  console.log('Portal Domains:', portalDomains);
+
+  // Main SaaS portal
+  if (portalDomains.includes(hostname)) {
     return NextResponse.next();
   }
 
   let siteName = hostname;
 
-  // Handles subdomain resolution mapping (e.g. workspace.multiverse.com)
-  if (hostname.endsWith('.multiverse.com')) {
-    siteName = hostname.replace('.multiverse.com', '');
+  // Production subdomains
+  if (hostname.endsWith(`.${rootDomain}`)) {
+    siteName = hostname.replace(`.${rootDomain}`, '');
   }
 
-  // Handles local testing subdomains (e.g. workspace.localhost:3005)
-  if (hostname.endsWith('.localhost:3005')) {
-    siteName = hostname.replace('.localhost:3005', '');
+  // Localhost subdomains
+  else if (hostname.includes('.localhost:')) {
+    siteName = hostname.split('.localhost:')[0];
   }
 
-  // Handles local testing subdomains (e.g. workspace.localhost:3002)
-  if (hostname.endsWith('.localhost:3002')) {
-    siteName = hostname.replace('.localhost:3002', '');
+  // Local IP subdomains
+  else if (hostname.includes('.192.168.')) {
+    siteName = hostname.split('.')[0];
   }
 
-  // Handles network local testing subdomains (e.g. workspace.192.168.1.169:3005)
-  if (hostname.endsWith('.192.168.1.169:3005')) {
-    siteName = hostname.replace('.192.168.1.169:3005', '');
-  }
-
-  // Rewrite page paths internally to the dynamic folder structure
+  // Rewrite tenant site
   url.pathname = `/_sites/${siteName}${url.pathname}`;
+
+  console.log('Rewrite Path:', url.pathname);
+
   return NextResponse.rewrite(url);
 }
 
